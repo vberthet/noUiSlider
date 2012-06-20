@@ -8,7 +8,6 @@
 					'scale'			: '',			// NEW. Use like [0,50] or omit.
 					'startMin'		: '25',			
 					'startMax'		: '75',
-					'scaleType'     : 'linear',
 					
 					'point'			: '',			// Accepts [array/both, lower, upper, 0, 1]
 					'saveScale'		: false,
@@ -71,19 +70,7 @@
 										if(!settings.knobRelease && settings.callBack){
 											settings.knobRelease=settings.callBack;
 										}
-										if(settings.scaleType=="log"){
-											var toLog = function(i){
-												return (i>1) ? (Math.log(i)/Math.LN10)*10 : i;
-											}
-											settings.startMin = toLog(settings.startMin);
-											settings.startMax = toLog(settings.startMax);
-											if(settings.scale){
-												settings.scale[0] = toLog(settings.scale[0]);
-												settings.scale[1] = toLog(settings.scale[1]);
-											}
-											settings.startMin = toLog(settings.startMin);
-											$(this).data('scaleType','log');
-										}
+									
 										var element = $(this);
 										
 										if((!element.is(':visible'))&&((element.css('width')).indexOf('%')!=-1)){
@@ -293,15 +280,6 @@
 										}
 									}
 									
-									if($(this).data('scaleType')=='log'){
-										$.each(settings.setTo,function(i,v){
-											settings.setTo[i]=(v==0) ? 0 : Math.round((Math.log(v)/Math.LN10)*10);
-										});
-										$.each(settings.scale,function(i,v){
-											settings.setTo[i]=(v==0) ? 0 : Math.round((Math.log(v)/Math.LN10)*10);
-										});
-									}
-									
 									if(settings.saveScale){
 										$(this).data('scale',settings.scale);
 									}
@@ -410,16 +388,7 @@
 											returnA.push(scaleToLoc($(this), $(this).find('.noUi_upperHandle'), settings.scale));
 										}
 									}
-									if($(this).data('scaleType')=='log'){
-										if(!isNaN(returnA[0]) && returnA[0]>1){
-											var i = Math.pow(10,(Math.floor(returnA[0]/10)));
-											returnA[0]=(Math.round(Math.pow(10,(returnA[0]/10))/i)* i);
-										}
-										if(!isNaN(returnA[1]) && returnA[1]>1){
-											var i = Math.pow(10,(Math.floor(returnA[1]/10)));
-											returnA[1]=(Math.round(Math.pow(10,(returnA[1]/10))/i)* i);;
-										}
-									}
+									
 									if(settings.point=='lower'||settings.point==0){
 										return returnA[0];
 									}
