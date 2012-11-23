@@ -127,8 +127,8 @@
 				left:				function(){
 					return parseFloat($(this).css('left'));
 				},
-				call:				function( f, t, n ){
-					if ( typeof(f) == "function" ){ f.call(t, n) }
+				call:				function( f, t, n, o){
+					if ( typeof(f) == "function" ){ f.call(t, n, o) }
 				},
 				bounce:				function( api, n, c, handle ){
 
@@ -411,22 +411,23 @@
 						if( (handle.is(api.up) && handle.left() == 0) || (handle.is(api.low) && handle.left() == api.slider.innerWidth()) ){
 							handle.css('zIndex',parseInt(handle.css('zIndex'))+2);
 						}
+						i = $(".noUi-handle",api.slider).index($(handle).closest(".noUi-handle"));
 						helpers.connect(api);
-						helpers.call(api.options.change, api.slider, 'slide');
+						helpers.call(api.options.change, api.slider, 'slide',i);
 					
 					}
 
 				},
 				end:				function(){
 				
-					var h,api;
+					var h,api,i;
 				
 					h		= $('.noUi-activeHandle');
 					api		= h.parent().parent().data('api');
-					
+					i = $(".noUi-handle",api.slider).index($(h).closest(".noUi-handle"));
 					$(document).add('body').add(h.removeClass('noUi-activeHandle').parent()).unbind('.noUi');
 					
-					helpers.call(api.options.end, api.slider, 'slide');
+					helpers.call(api.options.end, api.slider, 'slide',i);
 				
 				},
 				click:				function( e ){
@@ -436,18 +437,27 @@
 						var api = $(this).data('api');
 						var s	= api.options;
 						var c	= e.pageX - api.slider.offset().left;
+						var i;
 						
 						c = s.step ? roundTo(c,helpers.scale( s.step, s.scale, api.slider.innerWidth() )) : c;
 						
 						if( api.low && api.up ){
-							c < ((api.low.left()+api.up.left())/2) ? api.low.css("left", c) : api.up.css("left", c);
+							if(c < ((api.low.left()+api.up.left())/2)){
+							  api.low.css("left", c);
+							  i=0;
+							}
+							else{
+							  api.up.css("left", c);
+							  i=1;
+							  }
 						} else {
 							api.handles[0].css('left',c);
+							i=0;
 						}
 						
 						helpers.connect(api);
-						helpers.call(s.change, api.slider, 'click');
-						helpers.call(s.end, api.slider, 'click');
+						helpers.call(s.change, api.slider, 'click',i);
+						helpers.call(s.end, api.slider, 'click',i);
 						
 					}
 
