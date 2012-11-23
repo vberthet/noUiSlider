@@ -15,48 +15,51 @@
 			function abs(a){ return Math.abs(a); }
 			function roundTo(a,b) { return Math.round(a / b) * b; }
 			function dup(a){ return jQuery.extend(true, {}, a); }
-
+			function simp(a){ return Math.pow(10,Math.floor(a-($.extend(defaults,options).logSign-1)));}
+			function toLog(a){return (a>1) ? (Math.log(a)/Math.LN10) : a;}
+			function unLog(a){return (a===0) ? a : Math.round(Math.pow(10,a)/simp(a))*simp(a);}
+			
 			var defaults, methods, helpers, options = options||[], functions, touch = ('ontouchstart' in document.documentElement);
 
 			defaults = {
 				
 			/*
-			 * {knobs} 				Specifies the number of knobs. (init)
+			 * {handles}			Specifies the number of handles. (init)
 			 * [INT]				1, 2
 			 */
-				'knobs'		:		2,
+				'handles'	:		2,
 			/*
-			 * {connect} 			Whether to connect the middle bar to the knobs. (init)
+			 * {connect} 			Whether to connect the middle bar to the handles. (init)
 			 * [MIXED] 				"upper", "lower", false, true
 			 */
 				'connect'	:		true,
 			/*
-			 * {scale}; 			The values represented by the slider knobs. (init,move,value)
+			 * {scale}; 			The values represented by the slider handles. (init,move,value)
 			 * [ARRAY]				[-+x,>x]
 			 */
 				'scale'		:		[0,100],
 			/*
-			 * {start}				The starting positions for the knobs, mapped to {scale}. (init)
+			 * {start}				The starting positions for the handles, mapped to {scale}. (init)
 			 * [ARRAY][INT]			[y>={scale[0]}, y=<{scale[1]}], integer in range.
 			 */
 				'start'		:		[25,75],
 			/*
-			 * {to}					The position to move a knob to. (move)
+			 * {to}					The position to move a handle to. (move)
 			 * [INT]				Any, but will be corrected to match z > {scale[0]} || _l, z < {scale[1]} || _u
 			 */
 				'to'		:		0,
 			/*
-			 * {knob}				The knob to move. (move)
+			 * {handle}				The handle to move. (move)
 			 * [MIXED]				0,1,"lower","upper"
 			 */
-				'knob'		:		0,
+				'handle'	:		0,
 			/*
 			 * {change}				The function to be called on every change. (init)
 			 * [FUNCTION]			param [STRING]'move type'
 			 */
 				'change'	:		'',
 			/*
-			 * {end}				The function when a knob is no longer being changed. (init)
+			 * {end}				The function when a handle is no longer being changed. (init)
 			 * [FUNCTION]			param [STRING]'move type'
 			 */
 				'end'		:		'',
@@ -74,8 +77,18 @@
 			 * {click}				Whether the slider moves by clicking the bar
 			 * [BOOLEAN]			true, false
 			 */
-				'click'		:		true
+				'click'		:		true,
 			
+			/*
+			 * {logScale}			Whether the slider should use logarithmic scale
+			 * [BOOLEAN]			true, false
+			 */
+				'logScale'	:		false,
+			/*
+			 * {logScale}			significant numbers for logarithmic scale (eg : 95865 -> 96000 Whether logSign is set to 2 )
+			 * [BOOLEAN]			true, false
+			 */
+				'logSign'   :   2
 			};
 			
 			helpers = {
@@ -89,17 +102,20 @@
 						a=a-d;
 						e=e-d;
 					}
-					return (a*c)/e;
+					var f = (a*c)/e
+					return /*($.extend(defaults,options).logScale) ? toLog(f) :*/ f;
 				},
 				deScale:			function( a, b, c ){
-					b[1] = neg(b[0]) ? b[1] + abs(b[0]) : b[1] - b[0];
-					return ((a*b[1])/c) + b[0];					
+					var d = b[0],e = b[1];
+					e = neg(d) ? e + abs(d) : e - d;
+					var f = ((a*e)/c) + d
+					return /*($.extend(defaults,options).logScale) ? deLog(f) : */f;					
 				},
 				connect:			function( api ){
 				
 					if(api.connect){
 					
-						if(api.knobs.length>1){
+						if(api.handles.length>1){
 							api.connect.css({'left':api.low.left(),'right':(api.slider.innerWidth()-api.up.left())});
 						} else {
 							api.low ? api.connect.css({'left':api.low.left(),'right':0}) : api.connect.css({'left':0,'right':(api.slider.innerWidth()-api.up.left())});
@@ -114,11 +130,11 @@
 				call:				function( f, t, n ){
 					if ( typeof(f) == "function" ){ f.call(t, n) }
 				},
-				bounce:				function( api, n, c, knob ){
+				bounce:				function( api, n, c, handle ){
 
 					var go = false;
 
-					if( knob.is( api.up ) ){
+					if( handle.is( api.up ) ){
 					
 						if( api.low && n < api.low.left() ){
 						
@@ -172,10 +188,21 @@
 						slider		= $(this).css('position','relative');
 						api			= new Object();
 						
+						
+						
 						api.options = $.extend( defaults, options );
 						s			= api.options;
 						
 						typeof s.start == 'object' ? 1 : s.start=[s.start];
+						
+						if(s.logScale===true){
+              $.each(s.scale,function(i,v){
+                s.scale[i] = toLog(v);
+              });
+              $.each(s.start,function(i,v){
+                s.start[i] = toLog(v);
+              });
+            }
 						
 						/* Available elements */
 						
@@ -188,9 +215,14 @@
 						
 						s.connect ? api.connect.appendTo(api.slider) : api.connect = false;
 						
-						/* Append the knobs */
+						/* Append the handles */
 						
-						if ( s.knobs === 1 ){
+						// legacy rename
+						if(s.knobs){
+							s.handles=s.knobs;
+						}
+						
+						if ( s.handles === 1 ){
 						
 							/*
 								This always looks weird:
@@ -201,13 +233,13 @@
 							
 								api.low		= false;
 								api.up		= api.up.appendTo(api.slider);
-								api.knobs	= [api.up];
+								api.handles	= [api.up];
 								
 							} else if ( s.connect === 'upper' || !s.connect ) {
 							
 								api.low		= api.low.prependTo(api.slider);
 								api.up		= false;
-								api.knobs	= [api.low];
+								api.handles	= [api.low];
 							
 							}
 							
@@ -215,7 +247,7 @@
 						
 							api.low		= api.low.prependTo(api.slider);
 							api.up		= api.up.appendTo(api.slider);
-							api.knobs	= [api.low, api.up];
+							api.handles	= [api.low, api.up];
 						
 						}
 						
@@ -224,7 +256,7 @@
 						
 						api.slider.children().css('position','absolute');
 						
-						$.each( api.knobs, function( index ){
+						$.each( api.handles, function( index ){
 						
 							$(this).css({
 								'left' : helpers.scale(s.start[index],api.options.scale,api.slider.innerWidth()),
@@ -248,20 +280,24 @@
 				},
 				move:				function(){
 				
-					var api, bounce, to, knob, scale;
+					var api, bounce, to, handle, scale;
 					
 					api = dup($(this).data('api'));
 					api.options = $.extend( api.options, options );
-
+					// rename legacy 'knob'
+					if(api.options.knob){
+						api.options.handle = api.options.knob;
+					}
+					api.options.to = (api.options.logScale===true) ? toLog(api.options.to) : api.options.to;
 					// flatten out the legacy 'lower/upper' options
-					knob	= api.options.knob;
-					knob	= api.knobs[knob == 'lower' || knob == 0 ? 0 : 1];
-					bounce	= helpers.bounce(api, helpers.scale(api.options.to, api.options.scale, api.slider.innerWidth()), knob.left(), knob);
+					handle	= api.options.handle;
+					handle	= api.handles[handle == 'lower' || handle == 0 || typeof handle == 'undefined' ? 0 : 1];
+					bounce	= helpers.bounce(api, helpers.scale(api.options.to, api.options.scale, api.slider.innerWidth()), handle.left(), handle);
 					
-					knob.css('left',bounce[0]);
+					handle.css('left',bounce[0]);
 					
-					if( (knob.is(api.up) && knob.left() == 0) || (knob.is(api.low) && knob.left() == api.slider.innerWidth()) ){
-						knob.css('zIndex',parseInt(knob.css('zIndex'))+2);
+					if( (handle.is(api.up) && handle.left() == 0) || (handle.is(api.low) && handle.left() == api.slider.innerWidth()) ){
+						handle.css('zIndex',parseInt(handle.css('zIndex'))+2);
 					}
 					
 					if(options.save===true){
@@ -281,8 +317,14 @@
 					api = dup($(this).data('api'));
 					api.options = $.extend( api.options, options );
 					
-					val1	= api.low ? Math.round(helpers.deScale(api.low.left(), api.options.scale, api.slider.innerWidth()))  : false;
-					val2	= api.up ? Math.round(helpers.deScale(api.up.left(), api.options.scale, api.slider.innerWidth()))  : false;
+          if(api.options.logScale===true){
+            val1	= api.low ? Math.round(unLog(helpers.deScale(api.low.left(), api.options.scale, api.slider.innerWidth())))  : false;
+					  val2	= api.up ? Math.round(unLog(helpers.deScale(api.up.left(), api.options.scale, api.slider.innerWidth())))  : false;
+          }
+          else{
+					  val1	= api.low ? Math.round(helpers.deScale(api.low.left(), api.options.scale, api.slider.innerWidth()))  : false;
+					  val2	= api.up ? Math.round(helpers.deScale(api.up.left(), api.options.scale, api.slider.innerWidth()))  : false;
+					}
 					
 					if(options.save){
 						api.options.scale = options.scale;
@@ -327,11 +369,11 @@
 				},
 				move:				function( e ){
 				
-					var p = new Object(), h, api, go = false, knob, bounce;
+					var p = new Object(), h, api, go = false, handle, bounce;
 
 					h		= $('.noUi-activeHandle');
 					api		= h.parent().parent().data('api');
-					knob	= h.parent().is(api.low) ? api.low : api.up;
+					handle	= h.parent().is(api.low) ? api.low : api.up;
 					p.nw	= e.pageX - Math.round( api.slider.offset().left );
 					
 					// if there is no pageX on the event, it is probably touch, so get it there.
@@ -339,9 +381,9 @@
 						p.nw = e.originalEvent.touches[0].pageX - Math.round( api.slider.offset().left );
 					}
 					
-					p.cur	= knob.left();
+					p.cur	= handle.left();
 
-					bounce	= helpers.bounce(api, p.nw, p.cur, knob);
+					bounce	= helpers.bounce(api, p.nw, p.cur, handle);
 					p.nw	= bounce[0];
 					go		= bounce[1];
 					
@@ -365,9 +407,9 @@
 					
 					if(go){
 					
-						knob.css('left',p.nw);
-						if( (knob.is(api.up) && knob.left() == 0) || (knob.is(api.low) && knob.left() == api.slider.innerWidth()) ){
-							knob.css('zIndex',parseInt(knob.css('zIndex'))+2);
+						handle.css('left',p.nw);
+						if( (handle.is(api.up) && handle.left() == 0) || (handle.is(api.low) && handle.left() == api.slider.innerWidth()) ){
+							handle.css('zIndex',parseInt(handle.css('zIndex'))+2);
 						}
 						helpers.connect(api);
 						helpers.call(api.options.change, api.slider, 'slide');
@@ -400,7 +442,7 @@
 						if( api.low && api.up ){
 							c < ((api.low.left()+api.up.left())/2) ? api.low.css("left", c) : api.up.css("left", c);
 						} else {
-							api.knobs[0].css('left',c);
+							api.handles[0].css('left',c);
 						}
 						
 						helpers.connect(api);
